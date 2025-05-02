@@ -1,36 +1,39 @@
-from utils.secop_scraper import buscar_licitaciones
-from datetime import datetime
-import smtplib
-from email.message import EmailMessage
-import os
 
-# Parámetros de búsqueda
+from utils.secop_scraper import buscar_licitaciones_secop1
+from utils.secop2_scraper import buscar_licitaciones_secop2
+from utils.mailer import enviar_resultados_por_correo
+from utils.drive_uploader import subir_a_drive_si_hay_resultados
+from datetime import datetime
+import csv
+
+# Parámetros
 palabras_clave = ["papel", "computador", "resma", "silla", "mobiliario"]
 archivo_salida = f"licitaciones_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.csv"
+carpeta_drive_id = "TU_ID_DE_CARPETA_AQUI"  # <- Reemplaza con tu carpeta real
+correo_destinatario = "roca.variedades2022@gmail.com"
+correo_remitente = "camilo.paezt@gmail.com"
 
-# Ejecutar búsqueda
-buscar_licitaciones(palabras_clave, archivo_salida)
+# Ejecutar búsquedas
+resultados_secop1 = buscar_licitaciones_secop1(palabras_clave)
+resultados_secop2 = buscar_licitaciones_secop2(palabras_clave)
 
-# Configurar correo
-remitente = "camilo.paezt@gmail.com"
-destinatario = "roca.variedades2022@gmail.com"
-asunto = "Licitaciones encontradas - Roca-Licitaciones"
-cuerpo = "Adjunto encontrarás el archivo con las licitaciones encontradas hoy."
+# Unir resultados
+todos_los_resultados = resultados_secop1 + resultados_secop2
 
-mensaje = EmailMessage()
-mensaje["Subject"] = asunto
-mensaje["From"] = remitente
-mensaje["To"] = destinatario
-mensaje.set_content(cuerpo)
+# Guardar en CSV si hay resultados
+if todos_los_resultados:
+    with open(archivo_salida, mode="w", newline="", encoding="utf-8") as archivo:
+        campos = list(todos_los_resultados[0].keys())
+        writer = csv.DictWriter(archivo, fieldnames=campos)
+        writer.writeheader()
+        writer.writerows(todos_los_resultados)
 
-# Adjuntar el archivo CSV
-with open(archivo_salida, "rb") as f:
-    contenido = f.read()
-    mensaje.add_attachment(contenido, maintype="application", subtype="octet-stream", filename=archivo_salida)
+    print(f"✅ Archivo CSV generado: {archivo_salida}")
 
-# Enviar el correo
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")  # Cargada desde Render
+    # Enviar por correo
+    enviar_resultados_por_correo(archivo_salida, correo_destinatario, correo_remitente)
 
-with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-    smtp.login(remitente, EMAIL_PASSWORD)
-    smtp.send_message(mensaje)
+    # Subir a Google Drive
+    subir_a_drive_si_hay_resultados(archivo_salida, carpeta_drive_id)
+else:
+    print("⚠️ No se encontraron licitaciones. No se generó archivo.")
