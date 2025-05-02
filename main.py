@@ -4,28 +4,33 @@ import smtplib
 from email.message import EmailMessage
 import os
 
-# Parámetros
+# Parámetros de búsqueda
 palabras_clave = ["papel", "computador", "resma", "silla", "mobiliario"]
 archivo_salida = f"licitaciones_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.csv"
 
 # Ejecutar búsqueda
 buscar_licitaciones(palabras_clave, archivo_salida)
 
-# Enviar por correo
+# Configurar correo
+remitente = "camilo.paezt@gmail.com"
+destinatario = "roca.variedades2022@gmail.com"
+asunto = "Licitaciones encontradas - Roca-Licitaciones"
+cuerpo = "Adjunto encontrarás el archivo con las licitaciones encontradas hoy."
+
 mensaje = EmailMessage()
-mensaje["Subject"] = "📄 Licitaciones encontradas - Roca-Licitaciones"
-mensaje["From"] = "camilo.paezt@gmail.com"
-mensaje["To"] = "roca.variedades2022@gmail.com"
-mensaje.set_content("Adjunto el archivo con los resultados de la búsqueda de licitaciones más recientes.")
+mensaje["Subject"] = asunto
+mensaje["From"] = remitente
+mensaje["To"] = destinatario
+mensaje.set_content(cuerpo)
 
-with open(archivo_salida, "rb") as adjunto:
-    mensaje.add_attachment(adjunto.read(), maintype="application", subtype="octet-stream", filename=archivo_salida)
+# Adjuntar el archivo CSV
+with open(archivo_salida, "rb") as f:
+    contenido = f.read()
+    mensaje.add_attachment(contenido, maintype="application", subtype="octet-stream", filename=archivo_salida)
 
-# Autenticación usando variable de entorno
-EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
+# Enviar el correo
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")  # Cargada desde Render
 
 with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-    smtp.login("camilo.paezt@gmail.com", EMAIL_PASSWORD)
+    smtp.login(remitente, EMAIL_PASSWORD)
     smtp.send_message(mensaje)
-
-print("✅ Correo enviado con éxito a roca.variedades2022@gmail.com")
