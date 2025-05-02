@@ -8,7 +8,10 @@ def buscar_licitaciones(palabras_clave, nombre_archivo):
 
     for palabra in palabras_clave:
         print(f"Buscando licitaciones con: {palabra}")
-        resultados.append({"palabra": palabra, "resultado": "Simulado - prueba de robot"})
+        resultados.append({
+            "palabra": palabra,
+            "resultado": "Simulado - prueba de robot"
+        })
 
     with open(nombre_archivo, mode="w", newline="", encoding="utf-8") as archivo:
         campos = ["palabra", "resultado"]
