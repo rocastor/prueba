@@ -1,45 +1,45 @@
+
 from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 import time
 import csv
-from datetime import datetime
 
-def buscar_secop2(palabras_clave, nombre_archivo):
+def buscar_licitaciones(palabras_clave, nombre_archivo):
     opciones = Options()
     opciones.add_argument("--headless")
     opciones.add_argument("--no-sandbox")
     opciones.add_argument("--disable-dev-shm-usage")
 
-    driver = webdriver.Chrome(options=opciones)
-
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=opciones)
     resultados = []
-    try:
-        for palabra in palabras_clave:
-            print(f"Buscando en SECOP II: {palabra}")
-            driver.get("https://www.colombiacompra.gov.co/secop-ii")
-            time.sleep(5)
 
-            # Simulación: Aquí deberías navegar por la búsqueda avanzada, ingresar la palabra clave,
-            # aplicar filtro de valor entre 5 y 30 millones y extraer los resultados
-            resultados.append({
-                "fuente": "SECOP II",
-                "palabra": palabra,
-                "entidad": "Simulado",
-                "proceso": "Simulado",
-                "valor": "Simulado",
-                "enlace": "https://www.colombiacompra.gov.co/secop-ii"
-            })
+    for palabra in palabras_clave:
+        print(f"Buscando '{palabra}' en SECOP II...")
+        try:
+            driver.get("https://www.colombiacompra.gov.co/secop/secop-ii")
+            time.sleep(2)
 
-    except Exception as e:
-        print("Error:", e)
-    finally:
-        driver.quit()
+            campo_busqueda = driver.find_element(By.NAME, "query")
+            campo_busqueda.clear()
+            campo_busqueda.send_keys(palabra)
+            campo_busqueda.submit()
+            time.sleep(3)
 
-    if resultados:
-        with open(nombre_archivo, mode="w", newline="", encoding="utf-8") as archivo:
-            campos = ["fuente", "palabra", "entidad", "proceso", "valor", "enlace"]
-            writer = csv.DictWriter(archivo, fieldnames=campos)
-            writer.writeheader()
-            writer.writerows(resultados)
+            titulos = driver.find_elements(By.CSS_SELECTOR, "div.result h3")
+            for titulo in titulos:
+                resultados.append({"palabra": palabra, "resultado": titulo.text})
+
+        except Exception as e:
+            print(f"Error buscando '{palabra}' en SECOP II: {e}")
+            resultados.append({"palabra": palabra, "resultado": f"Error: {e}"})
+
+    driver.quit()
+
+    with open(nombre_archivo, mode="w", newline="", encoding="utf-8") as archivo:
+        campos = ["palabra", "resultado"]
+        writer = csv.DictWriter(archivo, fieldnames=campos)
+        writer.writeheader()
+        writer.writerows(resultados)
