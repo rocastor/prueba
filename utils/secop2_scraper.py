@@ -1,37 +1,37 @@
-
-import requests
-from bs4 import BeautifulSoup
 import csv
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from webdriver_manager.chrome import ChromeDriverManager
 
-def buscar_licitaciones_secop2(palabras_clave, nombre_archivo):
-    base_url = "https://www.contratos.gov.co/consultas/resultadosConsulta.do"
+def buscar_licitaciones(palabras_clave, nombre_archivo):
+    opciones = Options()
+    opciones.add_argument("--headless")
+    opciones.add_argument("--no-sandbox")
+    opciones.add_argument("--disable-dev-shm-usage")
+
+    driver = webdriver.Chrome(ChromeDriverManager().install(), options=opciones)
+
     resultados = []
 
     for palabra in palabras_clave:
         print(f"🔍 Buscando en SECOP II: {palabra}")
         try:
-            params = {
-                "tipoProceso": "1",
-                "modalidad": "2",
-                "estado": "2",
-                "criterio": "Objeto",
-                "palabraClave": palabra,
-                "registros": 20
-            }
-
-            response = requests.get(base_url, params=params, verify=False, timeout=10)
-            soup = BeautifulSoup(response.text, "html.parser")
-
-            filas = soup.select("table.tabla_borde tr")
-            if len(filas) > 1:
-                resultados.append({"palabra": palabra, "resultado": f"{len(filas)-1} resultados encontrados"})
-            else:
-                print(f"⚠️  No se encontraron resultados para: {palabra}")
-
+            driver.get("https://www.contratos.gov.co/consultas/inicioConsulta.do")
+            time.sleep(2)
+            search_box = driver.find_element(By.NAME, "palabraClave")
+            search_box.clear()
+            search_box.send_keys(palabra)
+            search_box.submit()
+            time.sleep(4)
+            resultados.append({"palabra": palabra, "resultado": "Simulado SECOP II - búsqueda ejecutada"})
         except Exception as e:
-            print(f"❌ Error buscando '{palabra}' en SECOP II: {e}")
+            print(f"❌ Error en SECOP II con '{palabra}': {e}")
+            resultados.append({"palabra": palabra, "resultado": "Error"})
 
-    # Guardar resultados
+    driver.quit()
+
     with open(nombre_archivo, mode="w", newline="", encoding="utf-8") as archivo:
         campos = ["palabra", "resultado"]
         writer = csv.DictWriter(archivo, fieldnames=campos)
