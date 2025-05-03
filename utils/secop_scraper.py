@@ -1,46 +1,44 @@
+
 import requests
 from bs4 import BeautifulSoup
+import csv
+import urllib3
 
-def buscar_licitaciones_secop1(palabras_clave):
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+def buscar_licitaciones_secop1(palabras_clave, nombre_archivo):
     url_base = "https://www.contratos.gov.co/consultas/resultadosConsulta.do"
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
     resultados = []
 
     for palabra in palabras_clave:
         print(f"🔍 Buscando en SECOP I: {palabra}")
-        params = {
-            "entidad": "",
-            "tipoProceso": "",
-            "modalidad": "",
-            "estado": "2",  # Estado 2 = Proceso de selección
-            "criterio": "Objeto",
-            "palabraClave": palabra,
-            "registros": "20"
-        }
-
         try:
-            response = requests.get(url_base, params=params, headers=headers, timeout=10)
+            params = {
+                "tipoProceso": "",
+                "modalidad": "",
+                "estado": "2",
+                "criterio": "Objeto",
+                "palabraClave": palabra,
+                "registros": 20
+            }
+            response = requests.get(url_base, params=params, verify=False, timeout=10)
+            response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
-            tabla = soup.find("table", class_="tablaResultados")
-            if tabla:
-                filas = tabla.find_all("tr")[1:]  # Omitir encabezado
-                for fila in filas:
-                    columnas = fila.find_all("td")
-                    if len(columnas) >= 6:
-                        resultado = {
-                            "Entidad": columnas[0].text.strip(),
-                            "Modalidad": columnas[1].text.strip(),
-                            "Número del proceso": columnas[2].text.strip(),
-                            "Objeto": columnas[3].text.strip(),
-                            "Cuantía": columnas[4].text.strip(),
-                            "Fecha de cierre": columnas[5].text.strip(),
-                            "Fuente": "SECOP I",
-                            "Palabra clave": palabra
-                        }
-                        resultados.append(resultado)
+            tabla = soup.find("table", {"class": "tablas"})
+            filas = tabla.find_all("tr")[1:] if tabla else []
+            resultados.append({
+                "palabra": palabra,
+                "resultados": len(filas)
+            })
         except Exception as e:
-            print(f"Error buscando '{palabra}' en SECOP I: {e}")
-    
-    return resultados
+            print(f"❌ Error buscando '{palabra}' en SECOP I:", e)
+            resultados.append({
+                "palabra": palabra,
+                "resultados": "error"
+            })
+
+    with open(nombre_archivo, mode="w", newline="", encoding="utf-8") as archivo:
+        campos = ["palabra", "resultados"]
+        writer = csv.DictWriter(archivo, fieldnames=campos)
+        writer.writeheader()
+        writer.writerows(resultados)
